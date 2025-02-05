@@ -12,4 +12,4 @@ migrate:
 	PYTHONPATH=./src/:${PYTHONPATH} poetry run python ./src/manage.py migrate
 
 collectstatic:
-	PYTHONPATH=./src/:${PYTHONPATH} poetry run python ./src/manage.py collectstatic
+	PYTHONPATH=./src/:${PYTHONPATH} poetry run python ./src/manage.py collectstatic -c --noinput
