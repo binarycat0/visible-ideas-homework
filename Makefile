@@ -2,6 +2,10 @@
 install:
 	poetry install
 
+lint:
+	poetry run black ./src;
+	poetry run isort ./src;
+
 run:
 	PYTHONPATH=./src/:${PYTHONPATH} poetry run python ./src/manage.py runserver
 

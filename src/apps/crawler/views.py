@@ -1,10 +1,13 @@
 from enum import StrEnum
+from logging import getLogger
 
 from django.core.handlers.wsgi import WSGIRequest
 from django.views.generic import TemplateView
 
 from .exceptions import ServiceException
 from .services import crawler_service
+
+logger = getLogger(__name__)
 
 
 class Status(StrEnum):
@@ -20,6 +23,7 @@ class Index(TemplateView):
 
     def post(self, request: WSGIRequest, *args, **kwargs):
         url = request.POST.get("url")
+        logger.info(f"Start crawling url: {url}")
 
         context = self.get_context_data(**kwargs)
         context["url"] = url
@@ -28,7 +32,7 @@ class Index(TemplateView):
 
         try:
             result = crawler_service.get_external_links(url)
-            context['result'] = result
+            context["result"] = result
         except ServiceException as ex:
             status = Status.ERROR
             context["error"] = str(ex)

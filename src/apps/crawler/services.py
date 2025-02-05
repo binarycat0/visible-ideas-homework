@@ -1,5 +1,8 @@
 import dataclasses
+from concurrent.futures import as_completed
+from concurrent.futures.thread import ThreadPoolExecutor
 from dataclasses import field
+from functools import lru_cache
 from logging import getLogger
 from typing import Dict
 from urllib.parse import urlparse
@@ -9,8 +12,9 @@ from bs4 import BeautifulSoup
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 from requests import Response
+from requests.adapters import HTTPAdapter, Retry
 
-from .exceptions import UrlIsInvalid, UrlProcessingException, ServiceException
+from .exceptions import ServiceException, UrlIsInvalid, UrlProcessingException
 
 logger = getLogger(__name__)
 
@@ -24,9 +28,26 @@ class CrawledLink:
 
 @dataclasses.dataclass
 class CrawlerService:
-    url_validator: URLValidator = field(default_factory=URLValidator)
-    request_timeout: int = 10
-    request_headers: Dict[str, str] = field(default_factory=lambda: {"User-Agent": "Mozilla/5.0"})
+    request_timeout: int = 2
+    request_headers: Dict[str, str] = field(
+        default_factory=lambda: {"User-Agent": "Mozilla/5.0"}
+    )
+
+    def __post_init__(self):
+        self._url_validator = URLValidator()
+
+        default_adapter = HTTPAdapter(pool_connections=100, max_retries=1)
+        self._session = requests.Session()
+        self._session.mount(prefix="https://", adapter=default_adapter)
+        self._session.mount(prefix="http://", adapter=default_adapter)
+
+    @property
+    def url_validator(self):
+        return self._url_validator
+
+    @property
+    def session(self):
+        return self._session
 
     def _is_url_valid(self, url: str) -> bool:
         try:
@@ -49,46 +70,61 @@ class CrawlerService:
         self._validate_url(url)
 
         try:
-            response = requests.get(url, timeout=self.request_timeout, headers=self.request_headers)
+            response = self.session.get(
+                url, timeout=self.request_timeout, headers=self.request_headers
+            )
             response.raise_for_status()
             return response
         except requests.Timeout as ex:
-            raise UrlProcessingException(f"Timeout error while trying get response from {url}") from ex
+            raise UrlProcessingException(
+                f"Timeout error while trying get response from {url}"
+            ) from ex
         except requests.HTTPError as ex:
             raise UrlProcessingException(
                 f"Unsuccessfully get response from {url}. Status: {ex.response.status_code}"
             ) from ex
+        except requests.RequestException as ex:
+            raise UrlProcessingException(
+                f"Something went wrong while trying get response from: {ex}"
+            ) from ex
 
-    def _get_link_title(self, link: str):
+    def _get_link_title(self, link: str) -> tuple[str, str]:
         response = self._get_url_data(link)
-        soup = BeautifulSoup(response.text, 'html.parser')
+        soup = BeautifulSoup(response.text, "html.parser")
         title_tag = soup.find("title")
-        return title_tag.text.strip() if title_tag else "<empty title>"
+        title = title_tag.text.strip() if title_tag else "<empty title>"
+        return link, title
 
-    def get_external_links(self, url: str) -> list[CrawledLink]:
+    def _get_external_links(self, url: str) -> list[CrawledLink]:
 
         response = self._get_url_data(url)
-        soup = BeautifulSoup(response.text, 'html.parser')
+        soup = BeautifulSoup(response.text, "html.parser")
 
-        external_links = set()
-        result = []
-        for link in soup.find_all('a', href=True):
-            href = link['href']
-            if not self._is_url_valid(href) or href in external_links:
-                continue
+        futures = []
+        external_links = {}
+        with ThreadPoolExecutor() as executor:
+            for link in soup.find_all("a", href=True):
+                href = link["href"]
+                if not self._is_url_valid(href) or href in external_links:
+                    continue
+                external_links[href] = (href, None)
+                futures.append(executor.submit(self._get_link_title, href))
 
-            title = ""
+        for future in as_completed(futures):
             try:
-                title = self._get_link_title(href)
+                link, title = future.result()
+                external_links[link] = (link, title)
             except ServiceException as ex:
-                logger.warning("Error while getting url title", exc_info=ex)
+                logger.warning("Error while getting url data", exc_info=ex)
 
-            external_links.add(href)
-            result.append(
-                CrawledLink(urlparse(href).netloc, title, href)
-            )
+        return [
+            CrawledLink(urlparse(link).netloc, title, link)
+            for link, title in external_links.values()
+        ]
 
-        return result
+    def get_external_links(self, url: str) -> list[CrawledLink]:
+        logger.info("get_external_links", url)
+        return self._get_external_links(url)
 
 
 crawler_service = CrawlerService()
