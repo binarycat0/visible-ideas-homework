@@ -54,7 +54,7 @@ class CrawlerService:
             self.url_validator(url)
             return True
         except ValidationError:
-            logger.info("Url Is Invalid")
+            logger.info(f"Url Is Invalid: {url}")
 
         return False
 
@@ -64,7 +64,7 @@ class CrawlerService:
         try:
             self.url_validator(url)
         except ValidationError as ex:
-            raise UrlIsInvalid("Url Is Invalid") from ex
+            raise UrlIsInvalid(f"Url Is Invalid: {url}") from ex
 
     def _get_url_data(self, url: str) -> Response:
         self._validate_url(url)
@@ -123,7 +123,7 @@ class CrawlerService:
         ]
 
     def get_external_links(self, url: str) -> list[CrawledLink]:
-        logger.info("get_external_links", url)
+        logger.info(f"get_external_links url:{url}")
         return self._get_external_links(url)
 
 

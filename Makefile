@@ -17,3 +17,12 @@ migrate:
 
 collectstatic:
 	PYTHONPATH=./src/:${PYTHONPATH} poetry run python ./src/manage.py collectstatic -c --noinput
+
+docker-build:
+	docker build -f ./docker/Dockerfile . -t visible-ideas-homework
+
+docker-up: docker-build
+	docker run --name visible-ideas-homework -p 8000:8000 -it visible-ideas-homework
+
+docker-down:
+	docker container rm visible-ideas-homework
