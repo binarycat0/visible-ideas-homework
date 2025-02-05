@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "visible-ideas-homework"
+version = "0.1.0"
+description = ""
+authors = ["binarycat <artur.rakhmatulin@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+django = "^5.1.6"
+psycopg2-binary = "^2.9.10"
+beautifulsoup4 = "^4.13.3"
+requests = "^2.32.3"
+isort = "^6.0.0"
+black = "^25.1.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

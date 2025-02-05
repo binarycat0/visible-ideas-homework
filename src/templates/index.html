@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md">
+            <div class="crawl-form">
+                <form action="/" method="post"> {% csrf_token %}
+                    <div class="input-group">
+                        <input {% if status == "ERROR" %} class="form-control text-bg-danger" {% else %}
+                        class="form-control" {% endif %}
+                        id="form-url"
+                        name="url"
+                        type="text"
+                        placeholder="Input URL here" value="{{ url }}">
+                        <button class="btn btn-outline-primary" type="submit">GO</button>
+                    </div>
+                </form>
+            </div>
+
+            {% if status == "ERROR" %}
+            <div style="margin-top: 5px">
+                <div class="alert alert-danger" role="alert">{{ error }}</div>
+            </div>
+            {% endif %}
+
+            {% if status == "OK" %}
+            <div style="margin-top: 5px">
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th scope="col">Title</th>
+                        <th scope="col">domain</th>
+                        <th scope="col">Link</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for link in result %}
+                    <tr>
+                        <td>{{ link.title }}</td>
+                        <td>{{ link.domain }}</td>
+                        <td>{{ link.link }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}
