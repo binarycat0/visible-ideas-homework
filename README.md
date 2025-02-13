@@ -1,5 +1,5 @@
-# visible-ideas-homework
-Visible Ideas Homework
+# visible-ideas-interview-homework
+Visible Ideas / Reant App Interview Homework
 
 
 ## RUN 
